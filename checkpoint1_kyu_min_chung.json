@@ -1,0 +1,279 @@
+{
+  "name": "AI Automation ADV 01",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -144,
+        0
+      ],
+      "id": "08c83e0a-1ea7-4219-b0df-bb4777630915",
+      "name": "When chat message received",
+      "webhookId": "efaee7f2-485c-4be8-86af-e294643f1e46"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "## ROL Y ÁMBITO\nSos el Asistente de Triage de Soporte de la compañia Next Level, una empresa de marketing digital.\nAtendés solamente consultas de clientes sobre los servicios que ya tienen contratados (planes Básico y Premium): pagos, facturación, plazos, planes, cancelaciones, acceso al panel, rondas de cambios y horarios.\nNO tenés autorización para: emitir reembolsos, aplicar descuentos, modificar datos de facturación ni prometer plazos distintos de los documentados.\nNO hacés otras tareas aunque el cliente las pida (ideas de contenido, textos para redes, consejos de marketing, opiniones sobre otras empresas): respondé que eso está fuera de tu ámbito y ofrecé ayuda con el servicio contratado.\n\n## OBJETIVO OPERATIVO\nResolver cada consulta con la información oficial de la base de conocimiento, o derivarla correctamente a un humano, dejando un registro trazable de lo que hiciste.\n\n## REGLAS DE USO DE HERRAMIENTAS\n1. SIEMPRE consultá \"Buscar_en_KB\" antes de responder. Nunca respondas de memoria sobre políticas, plazos, planes o procedimientos.\n2. El parámetro \"tema\" tiene que ser exactamente uno de estos valores: pago, facturacion, plazos, plan, cancelacion, acceso, cambios, horario. Elegí el que mejor describe la consulta (un error al pagar es \"pago\"; una duda sobre qué incluye un plan es \"plan\"). Si la consulta toca dos temas, hacé una búsqueda por cada uno.\n3. Si la búsqueda devuelve un artículo, respondé al cliente con esa información y citá el código del artículo entre paréntesis, por ejemplo (NL-01).\n4. Si después de dos búsquedas no tenés un artículo que responda la consulta, usá \"Escalar_A_Humano\". No inventes la respuesta.\n\n## PROTOCOLO DE ESCALAMIENTO\nDetené el ciclo y usá \"Escalar_A_Humano\" de inmediato si detectás: pedido de reembolso o devolución de dinero, mención a temas legales, tono de reclamo formal, o una consulta que la base de conocimiento no cubre.\nDespués de escalar, respondé al cliente con un mensaje breve, sin citar artículos, que termine exactamente con la frase: Caso derivado a un especialista."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        80,
+        0
+      ],
+      "id": "5c4e5019-d76c-4adb-b38e-e6e17a9f8d42",
+      "name": "AI Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        80,
+        192
+      ],
+      "id": "d271e7b9-1af3-4edb-8818-aa73eab86dc8",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "UTU8nX7qtWzqriY5",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        176,
+        320
+      ],
+      "id": "0768cb3a-5d31-45a3-a490-3e2b8622f2b8",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Xy-SdPh1z7WCWU4qRUlgx8bdCmk3ujxUumTYBqFUIdQ",
+          "mode": "list",
+          "cachedResultName": "Next_Level-KB",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Xy-SdPh1z7WCWU4qRUlgx8bdCmk3ujxUumTYBqFUIdQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1461835901,
+          "mode": "list",
+          "cachedResultName": "Articulos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Xy-SdPh1z7WCWU4qRUlgx8bdCmk3ujxUumTYBqFUIdQ/edit#gid=1461835901"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Tema",
+              "lookupValue": "={{ $fromAI('Tema', 'Palabra clave', 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        208
+      ],
+      "id": "8f2a017b-1584-4320-95f9-9dfdf17ec75c",
+      "name": "Buscar_en_KB",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ECphkyotcfvYv3fH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Send a message in Slack",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#caso_escalado",
+          "mode": "name"
+        },
+        "text": "=He escalado el caso a usted porque lo que el cliente pide excede mis permisos.\n\nConsulta del cliente: \"{{ $json.chatInput }}\".",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slackTool",
+      "typeVersion": 2.7,
+      "position": [
+        400,
+        208
+      ],
+      "id": "2bd19b57-24c4-4dbf-a4cd-a5a096c8aef4",
+      "name": "Escalar_A_Humano",
+      "webhookId": "0823f87c-be6b-4656-bd13-dd738725b28c",
+      "credentials": {
+        "slackApi": {
+          "id": "ujprwomEONW5cvqv",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "kmc9000@protonmail.com",
+        "subject": "[LOG] Agente IA De Soporte - Reporte De Actividad",
+        "message": "=<p><strong>Nombre Workflow:</strong> {{ $workflow.name }}</p>\n<p><strong>ID Sesión:</strong> {{ $workflow.id }}</p>\n<p><strong>Consulta del cliente:</strong><br>\n{{ $('When chat message received').item.json.chatInput }}</p>\n<p><strong>Respuesta del Agente de IA:</strong><br>\n{{ $json.output }}</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "e98dd56b-3fd3-4597-8c90-1b87c6a301f8",
+      "name": "Send a message",
+      "webhookId": "335346da-ad0a-454d-bbe1-e0af9bf4e8f8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "45L8ykCvuAwbtCff",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "85a2dabc-ae08-4a10-86ae-a2f117f80c77",
+              "name": "output",
+              "value": "={{ $('AI Agent').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "3789ae56-3802-4e03-b813-09edbf966d5a",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar_en_KB": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalar_A_Humano": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e1ebb205-4e18-493b-b162-ebf6daa711d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "65172a90afdd3282c0fc5e98c70456bffcc077f952facf91f9ff51d735fd89d8"
+  },
+  "nodeGroups": [],
+  "id": "661DoD0QR0rQuDVG",
+  "tags": []
+}
